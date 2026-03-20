@@ -38,6 +38,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 
 import shared
+import video_coach
 from voice_call import _make_vonage_call
 from fitbit import get_sleep_by_date, get_sleep_log_list, format_sleep_summary
 
@@ -240,6 +241,37 @@ async def call_user_await_response(
         shared._pending_calls.pop(call_id, None)
         if call_uuid:
             shared._call_uuid_to_id.pop(call_uuid, None)
+
+
+@mcp.tool()
+async def analyze_training_video(file_id: str) -> str:
+    """
+    Analyze a training video sent by the user via Telegram.
+
+    Downloads the video from Telegram using the file_id, uploads it to
+    Google Gemini, and returns expert coaching feedback including:
+      - Sport / exercise identification
+      - What the athlete is doing well (specific body mechanics)
+      - What needs improvement (actionable corrections)
+      - A key drill or cue to focus on next session
+
+    Use this tool when send_message_await_response returns a reply
+    starting with "VIDEO:" — the rest of the string is the file_id.
+
+    Example flow:
+      1. send_message_await_response("Send me a video of your training")
+         → returns "VIDEO:BAACAgIAAxk..."
+      2. analyze_training_video("BAACAgIAAxk...")
+         → returns coaching feedback text
+
+    Args:
+        file_id: The Telegram file_id of the video (from a VIDEO: reply).
+
+    Returns:
+        Coaching feedback as plain text, ready to send back to the user
+        or store in Notion for tracking progress over time.
+    """
+    return await video_coach.analyze_video(file_id)
 
 
 @mcp.tool()
