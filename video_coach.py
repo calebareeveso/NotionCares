@@ -6,6 +6,7 @@ and returns coaching feedback identifying the sport and
 what the user is doing well / badly.
 """
 
+import asyncio
 import logging
 import os
 import tempfile
@@ -60,6 +61,17 @@ async def analyze_video(file_id: str) -> str:
 
         video_file = client.files.upload(file=tmp_path)
         log.info("Uploaded video to Gemini: %s (%s bytes)", video_file.name, len(video_bytes))
+
+        # Wait for Gemini to finish processing the video
+        while video_file.state.name == "PROCESSING":
+            log.info("Waiting for Gemini to process video %s...", video_file.name)
+            await asyncio.sleep(2)
+            video_file = client.files.get(name=video_file.name)
+
+        if video_file.state.name != "ACTIVE":
+            return f"Video processing failed — Gemini state: {video_file.state.name}"
+
+        log.info("Video %s is ACTIVE, requesting analysis", video_file.name)
 
         response = client.models.generate_content(
             model="gemini-2.5-flash",
