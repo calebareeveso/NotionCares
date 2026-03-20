@@ -23,6 +23,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+import fitbit
 import shared
 from voice_call import call_router
 
@@ -44,6 +45,35 @@ app = FastAPI(
 
 # Mount voice call endpoints (/call/event, /call/media-stream)
 app.include_router(call_router)
+
+
+@app.get("/fitbit/authorize")
+async def fitbit_authorize():
+    try:
+        url = fitbit.get_authorize_url()
+        return {"authorize_url": url}
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/fitbit/callback")
+async def fitbit_callback(code: str = "", state: str = ""):
+    if not code or not state:
+        return JSONResponse({"error": "Missing code or state parameter"}, status_code=400)
+    try:
+        tokens = await fitbit.exchange_code(code, state)
+        return {"user_id": tokens.get("user_id"), "scopes": tokens.get("scope", "").split(" ")}
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=502)
+
+
+@app.get("/fitbit/status")
+async def fitbit_status():
+    return {"connected": fitbit.is_connected()}
 
 
 @app.post("/webhook")

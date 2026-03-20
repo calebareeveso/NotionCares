@@ -39,6 +39,7 @@ from mcp.server.transport_security import TransportSecuritySettings
 
 import shared
 from voice_call import _make_vonage_call
+from fitbit import get_sleep_by_date, get_sleep_log_list, format_sleep_summary
 
 load_dotenv()
 
@@ -239,3 +240,54 @@ async def call_user_await_response(
         shared._pending_calls.pop(call_id, None)
         if call_uuid:
             shared._call_uuid_to_id.pop(call_uuid, None)
+
+
+@mcp.tool()
+async def get_sleep_data(date: str = "", days: int = 1) -> str:
+    """
+    Fetch Fitbit sleep data for the user.
+
+    - If date is provided (YYYY-MM-DD), fetches sleep log for that specific date.
+    - If date is empty and days=1 (default), fetches last night's sleep.
+    - If days > 1, fetches the last N days of sleep records.
+
+    Returns a human-readable summary of sleep duration, efficiency, and stages.
+    Use this to check how the user slept before asking about their day.
+    """
+    from datetime import date as date_cls, timedelta
+
+    try:
+        if date and days <= 1:
+            # Single date lookup
+            data = await get_sleep_by_date(date)
+            return format_sleep_summary(data)
+
+        if not date:
+            # Default to today (last night's sleep is logged under today's date)
+            date = date_cls.today().isoformat()
+
+        if days <= 1:
+            data = await get_sleep_by_date(date)
+            return format_sleep_summary(data)
+
+        # Multi-day: fetch recent sleep records
+        after = (date_cls.fromisoformat(date) - timedelta(days=days)).isoformat()
+        data = await get_sleep_log_list(after_date=after, limit=days, sort="desc")
+        entries = data.get("sleep", [])
+        if not entries:
+            return f"No sleep data found for the last {days} days."
+
+        summaries = []
+        for entry in entries:
+            entry_date = entry.get("dateOfSleep", "unknown")
+            summary = format_sleep_summary({"sleep": [entry]})
+            summaries.append(f"[{entry_date}]\n{summary}")
+
+        return "\n\n".join(summaries)
+
+    except ValueError as e:
+        # Token missing or refresh failed
+        return f"Fitbit not connected: {e}. Ask the user to authorize via the setup link."
+    except Exception:
+        log.exception("Failed to fetch sleep data")
+        return "Error fetching sleep data. Check server logs for details."
