@@ -1,0 +1,22 @@
+# NotionCares — Telegram & Phone Call MCP
+# Python 3.11+
+
+# MCP server framework (official SDK, includes FastMCP)
+mcp>=1.7.1
+
+# Telegram Bot API
+python-telegram-bot>=21.6
+
+# HTTP client for Telegram API calls
+httpx>=0.27.2
+
+# Web server for both MCP and Telegram webhook
+uvicorn[standard]>=0.30.6
+fastapi>=0.115.0
+
+# Environment variables
+python-dotenv>=1.0.1
+
+# Voice call support (Vonage + ElevenLabs)
+websockets>=12.0
+PyJWT[crypto]>=2.8.0

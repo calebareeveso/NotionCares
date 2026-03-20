@@ -1,0 +1,53 @@
+# Python / packaging
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Environment variables / secrets
+.env
+.env.*
+!.env.example
+
+# Keys and certificates
+private.key
+*.key
+*.pem
+*.crt
+*.cer
+*.p12
+*.jks
+
+# Local tool state / editor config
+.claude/
+.vscode/
+.idea/
+
+# Local logs / databases / caches
+*.log
+*.sqlite3
+*.db
+*.jsonl
+.cache/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+dist/
+build/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Misc
+*.swp
+*~
+
