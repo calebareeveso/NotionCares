@@ -263,8 +263,8 @@ async def get_sleep_data(date: str = "", days: int = 1) -> str:
             return format_sleep_summary(data)
 
         if not date:
-            # Default to today (last night's sleep is logged under today's date)
-            date = date_cls.today().isoformat()
+            # Default to yesterday (sleep logged overnight, agent runs in morning)
+            date = (date_cls.today() - timedelta(days=1)).isoformat()
 
         if days <= 1:
             data = await get_sleep_by_date(date)
