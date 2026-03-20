@@ -111,7 +111,12 @@ async def telegram_webhook(request: Request) -> JSONResponse:
     text: str = message.get("text", "").strip()
 
     # ── Video message handling ────────────────────────────────────────
+    # Telegram sends videos as "video", "video_note" (round clips), or
+    # "document" when sent as a file attachment (e.g. .MOV, .mp4).
     video = message.get("video") or message.get("video_note")
+    doc = message.get("document")
+    if not video and doc and (doc.get("mime_type") or "").startswith("video/"):
+        video = doc
     if video:
         file_id = video["file_id"]
         log.info("Received video from chat_id=%s, file_id=%s", chat_id, file_id)
