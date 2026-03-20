@@ -25,6 +25,7 @@ from fastapi.responses import JSONResponse
 
 import fitbit
 import shared
+import video_coach
 from voice_call import call_router
 
 load_dotenv()
@@ -76,6 +77,16 @@ async def fitbit_status():
     return {"connected": fitbit.is_connected()}
 
 
+async def _send_telegram(chat_id: int, text: str) -> None:
+    """Send a plain-text message to a Telegram chat."""
+    async with httpx.AsyncClient() as client:
+        await client.post(
+            f"{TELEGRAM_API}/sendMessage",
+            json={"chat_id": chat_id, "text": text},
+            timeout=10,
+        )
+
+
 @app.post("/webhook")
 async def telegram_webhook(request: Request) -> JSONResponse:
     """
@@ -98,6 +109,35 @@ async def telegram_webhook(request: Request) -> JSONResponse:
 
     chat_id: int = message["chat"]["id"]
     text: str = message.get("text", "").strip()
+
+    # ── Video message handling ────────────────────────────────────────
+    video = message.get("video") or message.get("video_note")
+    if video:
+        file_id = video["file_id"]
+        log.info("Received video from chat_id=%s, file_id=%s", chat_id, file_id)
+
+        # If agent is waiting for a reply, pass file_id through
+        if chat_id in shared._pending:
+            event, holder = shared._pending[chat_id]
+            holder.append(f"VIDEO:{file_id}")
+            event.set()
+            log.info("Resolved pending reply with video file_id for chat_id=%s", chat_id)
+        else:
+            # Standalone: analyze directly and reply
+            import asyncio
+
+            async def _analyze_and_reply():
+                try:
+                    await _send_telegram(chat_id, "Analysing your video… one moment")
+                    feedback = await video_coach.analyze_video(file_id)
+                    await _send_telegram(chat_id, feedback)
+                except Exception as exc:
+                    log.exception("Video analysis failed for chat_id=%s", chat_id)
+                    await _send_telegram(chat_id, f"Sorry, video analysis failed: {exc}")
+
+            asyncio.create_task(_analyze_and_reply())
+
+        return JSONResponse({"ok": True})
 
     if not text:
         # Ignore non-text updates (stickers, photos, etc.)
